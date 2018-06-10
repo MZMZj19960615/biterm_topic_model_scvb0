@@ -1,0 +1,39 @@
+CXX:=clang++-3.9
+CXXFLAGS:=-O3 -std=c++11 -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic -Weffc++ 
+PYFLAGS:=$(shell python3-config --cflags --ldflags |sed -e 's/-fno-plt//')
+
+TARGET:=bin/mod.so
+
+COMMON_LIB_DIR:=../cpp_libs
+CPLUS_INCLUDE_PATH:=$(COMMON_LIB_DIR)/eigen:$(CPLUS_INCLUDE_PATH)
+CPLUS_INCLUDE_PATH:=$(COMMON_LIB_DIR)/pcg-cpp/include:$(CPLUS_INCLUDE_PATH)
+CPLUS_INCLUDE_PATH:=$(COMMON_LIB_DIR)/pybind11/include:$(CPLUS_INCLUDE_PATH)
+
+export CPLUS_INCLUDE_PATH
+#FLAGSFORBUILDTYPE:=-DDEBUG
+FLAGSFORBUILDTYPE:=-DNDEBUG
+
+CXXFILES:=$(shell find src -name '*.cpp')
+OBJFILES:=$(patsubst src/%,build/%,$(CXXFILES:.cpp=.o))
+DEPENDS:=$(OBJFILES:.o=.d)
+
+$(TARGET): $(OBJFILES)
+	mkdir -p $(dir $@)
+	$(CXX) -fPIC -shared $(CXXFLAGS) $(PYFLAGS) $(LIBS) $(FLAGSFORBUILDTYPE) -o $@ $^
+
+build/%.o: src/%.cpp
+	mkdir -p $(dir $@)
+	$(CXX) -fPIC -shared $(CXXFLAGS) $(PYFLAGS) $(FLAGSFORBUILDTYPE) -MMD -MP -c -o $@ $<
+
+.PHONY: all
+all: clean $(TARGET)
+
+
+.PHONY: clean
+clean:
+	rm -r build
+	mkdir build
+	rm -r bin
+	mkdir bin
+
+-include $(DEPENDS)
